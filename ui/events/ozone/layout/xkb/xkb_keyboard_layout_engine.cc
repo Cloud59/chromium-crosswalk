@@ -625,6 +625,7 @@ const PrintableSimpleEntry kSimpleMap[] = {
     {0x0259, VKEY_OEM_3},      // schwa
 };
 
+#if defined(OS_CHROMEOS)
 void LoadKeymap(const std::string& layout_name,
                 scoped_ptr<xkb_rule_names> names,
                 scoped_refptr<base::SingleThreadTaskRunner> reply_runner,
@@ -640,6 +641,7 @@ void LoadKeymap(const std::string& layout_name,
   reply_runner->PostTask(FROM_HERE, base::Bind(reply_callback, layout_name,
                                                base::Owned(keymap_str)));
 }
+#endif
 
 }  // anonymous namespace
 
@@ -676,7 +678,6 @@ bool XkbKeyboardLayoutEngine::CanSetCurrentLayout() const {
 
 bool XkbKeyboardLayoutEngine::SetCurrentLayoutByName(
     const std::string& layout_name) {
-#if defined(OS_CHROMEOS)
   current_layout_name_ = layout_name;
   for (const auto& entry : xkb_keymaps_) {
     if (entry.layout_name == layout_name) {
@@ -684,6 +685,7 @@ bool XkbKeyboardLayoutEngine::SetCurrentLayoutByName(
       return true;
     }
   }
+#if defined(OS_CHROMEOS)
   LoadKeymapCallback reply_callback = base::Bind(
       &XkbKeyboardLayoutEngine::OnKeymapLoaded, weak_ptr_factory_.GetWeakPtr());
   scoped_ptr<xkb_rule_names> names = GetXkbRuleNames(layout_name);
@@ -693,12 +695,7 @@ bool XkbKeyboardLayoutEngine::SetCurrentLayoutByName(
                  base::ThreadTaskRunnerHandle::Get(), reply_callback),
       true);
 #else
-  xkb_keymap* keymap = xkb_map_new_from_string(
-      xkb_context_.get(), layout_name.c_str(), XKB_KEYMAP_FORMAT_TEXT_V1,
-      XKB_KEYMAP_COMPILE_NO_FLAGS);
-  if (!keymap)
-    return false;
-  SetKeymap(keymap);
+  OnKeymapLoaded(layout_name, layout_name.c_str());
 #endif  // defined(OS_CHROMEOS)
   return true;
 }
